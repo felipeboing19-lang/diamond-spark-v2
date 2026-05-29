@@ -3,6 +3,30 @@
     <span class="corner tl"></span><span class="corner tr"></span>
     <span class="corner bl"></span><span class="corner br"></span>
 
+    <!-- Aura orb -->
+    <div class="aura-wrap" v-if="showAuraEffect">
+      <div class="aura-ring" v-for="n in 3" :key="n" :style="{ animationDelay: `${(n-1) * 0.2}s` }"></div>
+      <div class="aura-core">
+        <span class="aura-text">+AURA</span>
+        <span class="aura-xp">+{{ lastXp }}</span>
+      </div>
+    </div>
+
+    <!-- Barra de aura total -->
+    <div class="aura-bar-wrap">
+      <div class="aura-bar-label">
+        <span class="aura-icon">✦</span>
+        <span>AURA</span>
+        <span class="aura-total">{{ totalAura }}</span>
+      </div>
+      <div class="aura-bar">
+        <div class="aura-fill" :style="{ width: `${auraPercent}%`, background: `linear-gradient(90deg, ${step.color}, ${step.color}88)` }"></div>
+        <div class="aura-particles">
+          <span v-for="p in auraParticles" :key="p.id" class="aura-particle" :style="{ left: p.x + '%', animationDelay: p.delay + 's', color: step.color }">✦</span>
+        </div>
+      </div>
+    </div>
+
     <header>
       <div class="step-info">
         <span class="step-num">ETAPA {{ String(index + 1).padStart(2, '0') }} / {{ String(total).padStart(2, '0') }}</span>
@@ -78,10 +102,39 @@ const answeredCount = computed(() =>
   Object.values(answers.value).filter(v => v === true).length
 )
 
+// Aura system
+const totalAura = ref(0)
+const showAuraEffect = ref(false)
+const lastXp = ref(0)
+const auraParticles = ref([])
+let particleId = 0
+let auraTimer = null
+
+const auraPercent = computed(() => Math.min((totalAura.value % 100), 100))
+
+function triggerAura() {
+  const xp = Math.floor(Math.random() * 15) + 10
+  lastXp.value = xp
+  totalAura.value += xp
+  showAuraEffect.value = true
+
+  // Adicionar partícula na barra
+  const p = { id: particleId++, x: auraPercent.value, delay: 0 }
+  auraParticles.value.push(p)
+  setTimeout(() => {
+    auraParticles.value = auraParticles.value.filter(ap => ap.id !== p.id)
+  }, 1200)
+
+  clearTimeout(auraTimer)
+  auraTimer = setTimeout(() => { showAuraEffect.value = false }, 1200)
+}
+
 function toggle(questionId) {
   const current = answers.value[questionId]
-  answers.value = { ...answers.value, [questionId]: current ? undefined : true }
+  const newVal = current ? undefined : true
+  answers.value = { ...answers.value, [questionId]: newVal }
   if (showMinError.value && answeredCount.value > 0) showMinError.value = false
+  if (newVal === true) triggerAura()
 }
 
 function tryNext() {
@@ -149,6 +202,8 @@ function hexToGlow(hex) {
   border-bottom-right-radius: 8px
 
 header
+  position: relative
+  z-index: 1
   display: flex
   justify-content: space-between
   align-items: flex-start
@@ -202,6 +257,8 @@ h2
     color: var(--ink-3)
 
 .progress-bar
+  position: relative
+  z-index: 1
   height: 3px
   background: rgba(255,255,255,0.05)
   border-radius: 2px
@@ -214,6 +271,8 @@ h2
   transition: width 0.4s ease
 
 .instruction
+  position: relative
+  z-index: 1
   margin: 0
   font-size: 12px
   color: var(--ink-3)
@@ -224,6 +283,8 @@ h2
     font-style: normal
 
 .q-list
+  position: relative
+  z-index: 1
   list-style: none
   margin: 0
   padding: 0 4px 0 0
@@ -292,6 +353,152 @@ h2
     box-shadow: 0 0 10px var(--cg)
     color: #05060d
 
+// Aura orb effect
+.aura-wrap
+  position: absolute
+  top: 50%
+  left: 50%
+  transform: translate(-50%, -50%)
+  z-index: 20
+  display: flex
+  align-items: center
+  justify-content: center
+  pointer-events: none
+  animation: aura-pop 1.2s ease forwards
+
+@keyframes aura-pop
+  0%
+    opacity: 0
+    transform: translate(-50%, -50%) scale(0.5)
+  20%
+    opacity: 1
+    transform: translate(-50%, -50%) scale(1.1)
+  60%
+    opacity: 1
+    transform: translate(-50%, -50%) scale(1)
+  100%
+    opacity: 0
+    transform: translate(-50%, -60%) scale(0.9)
+
+.aura-ring
+  position: absolute
+  width: 120px
+  height: 120px
+  border-radius: 50%
+  border: 2px solid var(--c)
+  animation: aura-ring-out 1.2s ease forwards
+  animation-delay: var(--delay)
+
+@keyframes aura-ring-out
+  0%
+    transform: scale(0.3)
+    opacity: 0.9
+  100%
+    transform: scale(2)
+    opacity: 0
+
+.aura-core
+  position: relative
+  z-index: 1
+  display: flex
+  flex-direction: column
+  align-items: center
+  gap: 2px
+  padding: 14px 20px
+  background: rgba(5,6,13,0.85)
+  border: 1px solid var(--c)
+  border-radius: 12px
+  box-shadow: 0 0 24px var(--cg)
+
+.aura-text
+  font-family: var(--font-display)
+  font-size: 11px
+  letter-spacing: 3px
+  color: var(--c)
+
+.aura-xp
+  font-family: var(--font-display)
+  font-size: 28px
+  font-weight: 900
+  color: var(--c)
+  text-shadow: 0 0 16px var(--cg)
+
+// Barra de aura
+.aura-bar-wrap
+  position: relative
+  z-index: 1
+  display: flex
+  flex-direction: column
+  gap: 5px
+
+.aura-bar-label
+  display: flex
+  align-items: center
+  gap: 6px
+  font-family: var(--font-display)
+  font-size: 10px
+  letter-spacing: 2px
+  color: var(--c)
+
+.aura-icon
+  animation: spin 4s linear infinite
+
+@keyframes spin
+  from
+    transform: rotate(0deg)
+  to
+    transform: rotate(360deg)
+
+.aura-total
+  margin-left: auto
+  font-size: 11px
+  color: var(--ink-2)
+
+.aura-bar
+  position: relative
+  height: 6px
+  background: rgba(255,255,255,0.05)
+  border-radius: 3px
+  overflow: visible
+  border: 1px solid rgba(255,255,255,0.06)
+
+.aura-fill
+  height: 100%
+  border-radius: 3px
+  transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)
+  box-shadow: 0 0 8px var(--cg)
+  position: relative
+
+  &::after
+    content: ''
+    position: absolute
+    right: -1px
+    top: -2px
+    width: 10px
+    height: 10px
+    border-radius: 50%
+    background: var(--c)
+    box-shadow: 0 0 10px var(--cg), 0 0 20px var(--cg)
+
+.aura-particles
+  position: absolute
+  inset: 0
+  pointer-events: none
+
+.aura-particle
+  position: absolute
+  top: -6px
+  font-size: 10px
+  animation: particle-float 1.2s ease forwards
+
+@keyframes particle-float
+  0%
+    transform: translateY(0) scale(1)
+    opacity: 1
+  100%
+    transform: translateY(-20px) scale(0.5)
+    opacity: 0
+
 .min-error
   padding: 10px 14px
   background: rgba(255,107,139,0.1)
@@ -305,6 +512,8 @@ h2
     color: #ff8fa3
 
 footer
+  position: relative
+  z-index: 1
   display: grid
   grid-template-columns: 1fr auto 1fr
   align-items: center

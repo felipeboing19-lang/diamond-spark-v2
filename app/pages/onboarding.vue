@@ -4,6 +4,15 @@
     <div class="bg-grid"></div>
     <div class="overlay"></div>
 
+    <Transition name="constellation">
+      <OnbConstellationBg
+        v-if="currentStep"
+        :key="currentStep.code"
+        :category="currentStep.code"
+        :color="currentStep.color || '#3fb4ff'"
+        class="full-constellation"
+      />
+    </Transition>
     <button class="audio-toggle" @click="toggleAudio">
       <svg v-if="audioPlaying" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
       <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
@@ -323,6 +332,13 @@ function toggleAudio() { audioPlaying.value = !audioPlaying.value }
   z-index: 0
   pointer-events: none
 
+.full-constellation
+  position: fixed !important
+  inset: 0 !important
+  width: 100vw !important
+  height: 100vh !important
+  z-index: 1 !important
+
 .audio-toggle
   position: fixed
   top: 20px
@@ -446,6 +462,18 @@ function toggleAudio() { audioPlaying.value = !audioPlaying.value }
 .enter-enter-active
   transition: opacity 0.4s ease
 .enter-enter-from
+  opacity: 0
+
+.constellation-enter-active
+  transition: opacity 1s ease
+
+.constellation-leave-active
+  transition: opacity 0.6s ease
+
+.constellation-enter-from
+  opacity: 0
+
+.constellation-leave-to
   opacity: 0
 
 @media screen and (max-width: 640px)

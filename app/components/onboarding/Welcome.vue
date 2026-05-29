@@ -49,16 +49,26 @@
 </template>
 
 <script setup>
+import { getAvatarPath } from './data.js'
+
 defineEmits(['start'])
 
-const characters = [
-  { letter: 'R', name: 'REALISTA',      color: '#ffc14d', glow: 'rgba(255,193,77,0.6)',   image: '/images/P01.png', speech: 'Se quebrou, eu conserto. Se não existe, eu construo.' },
-  { letter: 'I', name: 'INVESTIGATIVO', color: '#00e5ff', glow: 'rgba(0,229,255,0.6)',    image: '/images/P02.png', speech: 'Cada dado guarda uma resposta. Eu vou encontrá-la.' },
-  { letter: 'A', name: 'ARTÍSTICO',     color: '#ff5fb1', glow: 'rgba(255,95,177,0.6)',   image: '/images/P03.png', speech: 'Vejo o que ninguém viu. Crio o que ninguém imaginou.' },
-  { letter: 'S', name: 'SOCIAL',        color: '#3fe0a8', glow: 'rgba(63,224,168,0.6)',   image: '/images/P04.png', speech: 'Pessoas no centro. Sempre. O futuro é coletivo.' },
-  { letter: 'E', name: 'EMPREENDEDOR',  color: '#a073ff', glow: 'rgba(160,115,255,0.6)',  image: '/images/P05.png', speech: 'Onde os outros veem risco, eu vejo oportunidade.' },
-  { letter: 'C', name: 'CONVENCIONAL',  color: '#3fb4ff', glow: 'rgba(63,180,255,0.6)',   image: '/images/P06.png', speech: 'Ordem, processo e precisão. É assim que se constrói.' }
+const { gender, loadProfile } = useProfile()
+
+onMounted(() => loadProfile())
+
+const baseCharacters = [
+  { letter: 'R', name: 'REALISTA',      color: '#ffc14d', glow: 'rgba(255,193,77,0.6)',  index: 1, speech: 'Se quebrou, eu conserto. Se não existe, eu construo.' },
+  { letter: 'I', name: 'INVESTIGATIVO', color: '#00e5ff', glow: 'rgba(0,229,255,0.6)',   index: 2, speech: 'Cada dado guarda uma resposta. Eu vou encontrá-la.' },
+  { letter: 'A', name: 'ARTÍSTICO',     color: '#ff5fb1', glow: 'rgba(255,95,177,0.6)',  index: 3, speech: 'Vejo o que ninguém viu. Crio o que ninguém imaginou.' },
+  { letter: 'S', name: 'SOCIAL',        color: '#3fe0a8', glow: 'rgba(63,224,168,0.6)',  index: 4, speech: 'Pessoas no centro. Sempre. O futuro é coletivo.' },
+  { letter: 'E', name: 'EMPREENDEDOR',  color: '#a073ff', glow: 'rgba(160,115,255,0.6)', index: 5, speech: 'Onde os outros veem risco, eu vejo oportunidade.' },
+  { letter: 'C', name: 'CONVENCIONAL',  color: '#3fb4ff', glow: 'rgba(63,180,255,0.6)',  index: 6, speech: 'Ordem, processo e precisão. É assim que se constrói.' }
 ]
+
+const characters = computed(() =>
+  baseCharacters.map(c => ({ ...c, image: getAvatarPath(c.index, gender.value) }))
+)
 </script>
 
 <style lang="sass" scoped>

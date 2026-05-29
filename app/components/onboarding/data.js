@@ -1,10 +1,17 @@
+// Retorna o path do avatar baseado no gender do usuário
+export function getAvatarPath(index, gender = 'neutral') {
+  const folder = gender === 'male' ? 'male' : gender === 'female' ? 'female' : 'neutral'
+  const num = String(index).padStart(2, '0')
+  return `/images/${folder}/P${num}.png`
+}
+
 export const profiles = {
   R: {
     letter: 'R',
     name: 'REALISTA',
     color: '#ffc14d',
     glow: 'rgba(255,193,77,0.6)',
-    image: '/images/P01.png',
+    avatarIndex: 1,
     speech: 'Se quebrou, eu conserto. Se não existe, eu construo.',
     description: 'Você é prático, direto e gosta de trabalhar com as mãos. Prefere soluções concretas a teorias abstratas.',
     careers: ['Robótica', 'Hardware', 'Infraestrutura', 'Redes e Sistemas', 'Automação', 'Manutenção Técnica']
@@ -14,7 +21,7 @@ export const profiles = {
     name: 'INVESTIGATIVO',
     color: '#00e5ff',
     glow: 'rgba(0,229,255,0.6)',
-    image: '/images/P02.png',
+    avatarIndex: 2,
     speech: 'Cada dado guarda uma resposta. Eu vou encontrá-la.',
     description: 'Você é curioso, analítico e adora resolver problemas complexos. Busca entender o porquê das coisas.',
     careers: ['Programação', 'Ciência de Dados', 'Inteligência Artificial', 'Pesquisa', 'Cibersegurança']
@@ -24,7 +31,7 @@ export const profiles = {
     name: 'ARTÍSTICO',
     color: '#ff5fb1',
     glow: 'rgba(255,95,177,0.6)',
-    image: '/images/P03.png',
+    avatarIndex: 3,
     speech: 'Vejo o que ninguém viu. Crio o que ninguém imaginou.',
     description: 'Você é criativo, expressivo e pensa fora da caixa. Transforma ideias em experiências únicas.',
     careers: ['Design Digital', 'Games', 'Animação e 3D', 'UX/UI', 'Produção Audiovisual', 'Artes Digitais']
@@ -34,7 +41,7 @@ export const profiles = {
     name: 'SOCIAL',
     color: '#3fe0a8',
     glow: 'rgba(63,224,168,0.6)',
-    image: '/images/P04.png',
+    avatarIndex: 4,
     speech: 'Pessoas no centro. Sempre. O futuro é coletivo.',
     description: 'Você é empático, comunicativo e tem habilidade natural para conectar pessoas e ideias.',
     careers: ['Educação Tech', 'Comunidades', 'UX Research', 'Recursos Humanos', 'Projetos Sociais']
@@ -44,7 +51,7 @@ export const profiles = {
     name: 'EMPREENDEDOR',
     color: '#a073ff',
     glow: 'rgba(160,115,255,0.6)',
-    image: '/images/P05.png',
+    avatarIndex: 5,
     speech: 'Onde os outros veem risco, eu vejo oportunidade.',
     description: 'Você é líder, persuasivo e tem visão de futuro. Transforma ideias em soluções que geram valor.',
     careers: ['Startups', 'Gestão de Projetos', 'Product Design', 'Marketing Digital', 'Liderança e Estratégia']
@@ -54,7 +61,7 @@ export const profiles = {
     name: 'CONVENCIONAL',
     color: '#3fb4ff',
     glow: 'rgba(63,180,255,0.6)',
-    image: '/images/P06.png',
+    avatarIndex: 6,
     speech: 'Ordem, processo e precisão. É assim que se constrói.',
     description: 'Você é metódico, detalhista e garante que tudo funcione com precisão. Sua força está na organização.',
     careers: ['Análise de Sistemas', 'Qualidade (QA)', 'Compliance', 'Finanças e Dados', 'Documentação']
@@ -62,13 +69,13 @@ export const profiles = {
 }
 
 export const intelligences = {
-  NAT: { name: 'Naturalista', color: '#3fe0a8', description: 'Conexão com natureza e classificação de padrões' },
-  MUS: { name: 'Musical', color: '#ff5fb1', description: 'Ritmo, melodia e padrões sonoros' },
-  LOG: { name: 'Lógico-Matemática', color: '#00e5ff', description: 'Raciocínio lógico e resolução de problemas' },
-  EXI: { name: 'Existencial', color: '#ffc14d', description: 'Propósito, ética e impacto no mundo' },
-  INT: { name: 'Interpessoal', color: '#3fe0a8', description: 'Empatia, colaboração e relações' },
-  COR: { name: 'Corporal-Cinestésica', color: '#ff8a3d', description: 'Coordenação, movimento e prática' },
-  LIN: { name: 'Linguística', color: '#a8e0ff', description: 'Comunicação, escrita e expressão' },
-  INA: { name: 'Intrapessoal', color: '#a073ff', description: 'Autoconhecimento e inteligência emocional' },
-  ESP: { name: 'Espacial', color: '#c7a0f0', description: 'Visualizar e manipular formas e espaços' }
+  NAT: { name: 'Naturalista',           color: '#3fe0a8', description: 'Conexão com natureza e classificação de padrões' },
+  MUS: { name: 'Musical',               color: '#ff5fb1', description: 'Ritmo, melodia e padrões sonoros' },
+  LOG: { name: 'Lógico-Matemática',     color: '#00e5ff', description: 'Raciocínio lógico e resolução de problemas' },
+  EXI: { name: 'Existencial',           color: '#ffc14d', description: 'Propósito, ética e impacto no mundo' },
+  INT: { name: 'Interpessoal',          color: '#3fe0a8', description: 'Empatia, colaboração e relações' },
+  COR: { name: 'Corporal-Cinestésica',  color: '#ff8a3d', description: 'Coordenação, movimento e prática' },
+  LIN: { name: 'Linguística',           color: '#a8e0ff', description: 'Comunicação, escrita e expressão' },
+  INA: { name: 'Intrapessoal',          color: '#a073ff', description: 'Autoconhecimento e inteligência emocional' },
+  ESP: { name: 'Espacial',              color: '#c7a0f0', description: 'Visualizar e manipular formas e espaços' }
 }

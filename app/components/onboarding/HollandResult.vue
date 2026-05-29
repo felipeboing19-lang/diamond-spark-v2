@@ -52,13 +52,16 @@
 </template>
 
 <script setup>
-import { profiles } from './data.js'
+import { profiles, getAvatarPath } from './data.js'
 
 const props = defineProps({
   results: { type: Array, required: true }
 })
 
 const emit = defineEmits(['confirm'])
+const { gender, loadProfile } = useProfile()
+
+onMounted(() => loadProfile())
 
 const selected = ref(null)
 
@@ -70,6 +73,7 @@ const top3 = computed(() => {
     .map(r => ({
       ...r,
       ...profiles[r.code],
+      image: getAvatarPath(profiles[r.code]?.avatarIndex || 1, gender.value),
       percentage: Math.round(parseFloat(r.percentage))
     }))
 })

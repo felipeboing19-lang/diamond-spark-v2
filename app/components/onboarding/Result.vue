@@ -1,55 +1,67 @@
 <template>
   <div class="result" :style="{ '--c': profile.color, '--cg': profile.glow }">
-    <span class="corner tl"></span><span class="corner tr"></span>
-    <span class="corner bl"></span><span class="corner br"></span>
 
     <div class="badge-top">RESULTADO DA SUA JORNADA</div>
 
-    <div class="profile-block">
-      <div class="avatar">
-        <img :src="profile.image" :alt="profile.name" @error="onImgError" />
-        <span class="letter-badge">{{ profile.letter }}</span>
+    <div class="main-layout">
+      <!-- Card do personagem -->
+      <div class="char-card">
+        <div class="card-img">
+          <img :src="avatarImage" :alt="profile.name" @error="onImgError" />
+          <div class="card-gradient"></div>
+        </div>
+        <div class="card-footer">
+          <span class="card-letter">{{ profile.letter }}</span>
+          <div class="card-info">
+            <span class="card-name">{{ profile.name }}</span>
+            <div class="score-bar">
+              <div class="score-fill" :style="{ width: `${compatibility}%` }"></div>
+            </div>
+            <span class="score-text">{{ compatibility }}% de compatibilidade</span>
+          </div>
+        </div>
       </div>
-      <div class="profile-info">
-        <span class="compat">{{ compatibility }}% DE COMPATIBILIDADE</span>
-        <h2>{{ profile.name }}</h2>
-        <span class="role">{{ profile.role }}</span>
-        <p class="speech">"{{ profile.speech }}"</p>
+
+      <!-- Informações -->
+      <div class="info-col">
+        <div class="speech-block">
+          <p class="speech">"{{ profile.speech }}"</p>
+        </div>
+
+        <p class="description">{{ profile.description }}</p>
+
+        <div class="section">
+          <h3>ÁREAS DE ATUAÇÃO</h3>
+          <div class="careers">
+            <span v-for="c in profile.careers" :key="c" class="career-tag">{{ c }}</span>
+          </div>
+        </div>
+
+        <div v-if="intelligence" class="section">
+          <h3>INTELIGÊNCIA PREDOMINANTE</h3>
+          <div class="intel-card" :style="{ '--ic': intelligence.color }">
+            <span class="intel-name">{{ intelligence.name }}</span>
+            <p>{{ intelligence.description }}</p>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="redo-btn" @click="$emit('redo')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+            REFAZER
+          </button>
+          <button class="accept-btn" @click="$emit('accept')">
+            <span>ACEITAR ESTE PERFIL</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>
+        </div>
       </div>
-    </div>
-
-    <p class="description">{{ profile.description }}</p>
-
-    <div class="section">
-      <h3>ÁREAS DE ATUAÇÃO EM TECNOLOGIA</h3>
-      <div class="careers">
-        <span v-for="c in profile.careers" :key="c" class="career-tag">{{ c }}</span>
-      </div>
-    </div>
-
-    <div v-if="intelligence" class="section intel-section">
-      <h3>SUA INTELIGÊNCIA PREDOMINANTE</h3>
-      <div class="intel-card" :style="{ '--ic': intelligence.color }">
-        <span class="intel-name">{{ intelligence.name }}</span>
-        <p>{{ intelligence.description }}</p>
-      </div>
-    </div>
-
-    <div class="actions">
-      <button class="redo-btn" @click="$emit('redo')">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
-        REFAZER
-      </button>
-      <button class="accept-btn" @click="$emit('accept')">
-        <span>ACEITAR ESTE PERFIL</span>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-      </button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { intelligences } from './data.js'
+import { intelligences, getAvatarPath } from './data.js'
 
 const props = defineProps({
   profile: { type: Object, required: true },
@@ -58,6 +70,13 @@ const props = defineProps({
 })
 
 defineEmits(['accept', 'redo'])
+
+const { gender, loadProfile } = useProfile()
+onMounted(() => loadProfile())
+
+const avatarImage = computed(() =>
+  getAvatarPath(props.profile?.avatarIndex || 1, gender.value)
+)
 
 const intelligence = computed(() =>
   props.intelligenceCode ? intelligences[props.intelligenceCode] : null
@@ -71,149 +90,147 @@ function onImgError(e) {
 <style lang="sass" scoped>
 .result
   position: relative
-  width: 680px
+  width: 920px
   max-width: calc(100vw - 32px)
-  max-height: calc(100vh - 64px)
+  max-height: calc(100vh - 48px)
   overflow-y: auto
-  padding: 36px 40px
-  background: linear-gradient(180deg, rgba(20,28,60,0.88), rgba(10,14,31,0.95))
-  border: 1px solid rgba(255,255,255,0.08)
+  padding: 32px 36px
+  background: linear-gradient(180deg, rgba(15,22,40,0.92), rgba(8,13,26,0.96))
+  border: 1px solid color-mix(in srgb, var(--c) 30%, rgba(255,255,255,0.08))
   border-radius: 20px
-  backdrop-filter: blur(20px)
-  font-family: 'Rajdhani', sans-serif
-  box-shadow: 0 0 60px var(--cg)
+  backdrop-filter: blur(24px)
+  box-shadow: 0 0 60px var(--cg), 0 24px 64px rgba(0,0,0,0.6)
+  display: flex
+  flex-direction: column
+  gap: 24px
 
   &::-webkit-scrollbar
     width: 3px
   &::-webkit-scrollbar-thumb
     background: rgba(255,255,255,0.1)
 
-.corner
-  position: absolute
-  width: 20px
-  height: 20px
-  border-color: var(--c)
-  border-style: solid
-  border-width: 0
-
-.tl
-  top: -1px
-  left: -1px
-  border-top-width: 2px
-  border-left-width: 2px
-  border-top-left-radius: 10px
-.tr
-  top: -1px
-  right: -1px
-  border-top-width: 2px
-  border-right-width: 2px
-  border-top-right-radius: 10px
-.bl
-  bottom: -1px
-  left: -1px
-  border-bottom-width: 2px
-  border-left-width: 2px
-  border-bottom-left-radius: 10px
-.br
-  bottom: -1px
-  right: -1px
-  border-bottom-width: 2px
-  border-right-width: 2px
-  border-bottom-right-radius: 10px
-
 .badge-top
-  font-family: 'Orbitron', sans-serif
+  font-family: var(--font-display)
   font-size: 10px
   letter-spacing: 3px
   color: var(--gold)
   text-align: center
-  margin-bottom: 24px
   opacity: 0.8
 
-.profile-block
-  display: flex
-  gap: 24px
-  align-items: center
-  margin-bottom: 20px
+.main-layout
+  display: grid
+  grid-template-columns: 280px 1fr
+  gap: 28px
+  align-items: start
 
-.avatar
-  position: relative
-  width: 120px
-  height: 120px
-  border-radius: 50%
-  border: 3px solid var(--c)
+// Card do personagem
+.char-card
+  border-radius: 16px
   overflow: hidden
-  flex-shrink: 0
+  border: 2px solid color-mix(in srgb, var(--c) 50%, transparent)
   box-shadow: 0 0 30px var(--cg)
-  background: linear-gradient(135deg, rgba(10,14,31,0.9), rgba(5,6,13,1))
+
+.card-img
+  position: relative
+  aspect-ratio: 3 / 4
+  overflow: hidden
 
   img
     width: 100%
     height: 100%
     object-fit: cover
+    object-position: top center
+    display: block
 
-.letter-badge
-  position: absolute
-  inset: 0
+  .card-gradient
+    position: absolute
+    inset: 0
+    background: linear-gradient(to bottom, transparent 50%, rgba(5,8,18,0.98) 100%)
+
+.card-footer
   display: flex
   align-items: center
-  justify-content: center
-  font-family: 'Cinzel', serif
-  font-size: 36px
-  font-weight: 700
-  color: var(--c)
-  text-shadow: 0 0 16px var(--cg)
+  gap: 12px
+  padding: 14px 16px
+  background: rgba(5,8,18,0.98)
+  border-top: 1px solid color-mix(in srgb, var(--c) 25%, transparent)
 
-.compat
-  font-family: 'Orbitron', sans-serif
+.card-letter
+  font-family: var(--font-display)
+  font-size: 28px
+  font-weight: 900
+  color: var(--c)
+  text-shadow: 0 0 12px var(--cg)
+  flex-shrink: 0
+
+.card-info
+  flex: 1
+  display: flex
+  flex-direction: column
+  gap: 5px
+
+.card-name
+  font-family: var(--font-display)
   font-size: 10px
   letter-spacing: 2px
   color: var(--c)
-  display: block
-  margin-bottom: 6px
 
-h2
-  margin: 0 0 4px
-  font-family: 'Cinzel', serif
-  font-size: 28px
-  font-weight: 700
-  color: var(--ink-0)
-  text-shadow: 0 0 12px var(--cg)
+.score-bar
+  height: 4px
+  background: rgba(255,255,255,0.08)
+  border-radius: 2px
+  overflow: hidden
 
-.role
-  display: block
-  font-family: 'Orbitron', sans-serif
+.score-fill
+  height: 100%
+  background: var(--c)
+  box-shadow: 0 0 6px var(--cg)
+  border-radius: 2px
+  transition: width 1s ease
+
+.score-text
+  font-family: var(--font-body)
   font-size: 11px
-  letter-spacing: 2px
-  color: var(--c)
-  margin-bottom: 10px
+  color: var(--ink-2)
+
+// Coluna de info
+.info-col
+  display: flex
+  flex-direction: column
+  gap: 18px
+
+.speech-block
+  padding: 16px 20px
+  background: color-mix(in srgb, var(--c) 6%, rgba(0,0,0,0.3))
+  border-left: 3px solid var(--c)
+  border-radius: 0 10px 10px 0
 
 .speech
   margin: 0
+  font-family: var(--font-body)
+  font-size: 16px
   font-style: italic
-  color: var(--ink-2)
-  font-size: 14px
-  line-height: 1.5
+  color: var(--ink-0)
+  line-height: 1.6
 
 .description
-  color: var(--ink-1)
+  margin: 0
+  font-family: var(--font-body)
   font-size: 14px
-  line-height: 1.6
-  margin-bottom: 20px
-  padding: 16px
-  background: rgba(0,0,0,0.2)
-  border-radius: 10px
-  border-left: 3px solid var(--c)
+  color: var(--ink-1)
+  line-height: 1.7
 
 .section
-  margin-bottom: 20px
+  display: flex
+  flex-direction: column
+  gap: 10px
 
   h3
-    font-family: 'Orbitron', sans-serif
+    font-family: var(--font-display)
     font-size: 10px
     letter-spacing: 2.5px
-    color: var(--ink-2)
-    margin-bottom: 12px
+    color: var(--ink-3)
+    margin: 0
 
 .careers
   display: flex
@@ -221,34 +238,34 @@ h2
   gap: 8px
 
 .career-tag
-  padding: 5px 12px
-  background: color-mix(in srgb, var(--c) 12%, transparent)
-  border: 1px solid color-mix(in srgb, var(--c) 40%, transparent)
+  padding: 5px 14px
+  background: color-mix(in srgb, var(--c) 10%, transparent)
+  border: 1px solid color-mix(in srgb, var(--c) 35%, transparent)
   border-radius: 999px
-  font-family: 'Orbitron', sans-serif
+  font-family: var(--font-display)
   font-size: 10px
   letter-spacing: 1px
   color: var(--c)
 
-.intel-section
-  .intel-card
-    padding: 14px 16px
-    background: color-mix(in srgb, var(--ic, var(--c)) 8%, rgba(0,0,0,0.3))
-    border: 1px solid color-mix(in srgb, var(--ic, var(--c)) 35%, transparent)
-    border-radius: 10px
+.intel-card
+  padding: 14px 16px
+  background: color-mix(in srgb, var(--ic, var(--c)) 8%, rgba(0,0,0,0.3))
+  border: 1px solid color-mix(in srgb, var(--ic, var(--c)) 35%, transparent)
+  border-radius: 10px
 
-    .intel-name
-      font-family: 'Orbitron', sans-serif
-      font-size: 13px
-      font-weight: 700
-      color: var(--ic, var(--c))
-      display: block
-      margin-bottom: 6px
+  .intel-name
+    font-family: var(--font-display)
+    font-size: 13px
+    font-weight: 700
+    color: var(--ic, var(--c))
+    display: block
+    margin-bottom: 6px
 
-    p
-      margin: 0
-      color: var(--ink-2)
-      font-size: 13px
+  p
+    margin: 0
+    color: var(--ink-2)
+    font-size: 13px
+    font-family: var(--font-body)
 
 .actions
   display: flex
@@ -256,6 +273,7 @@ h2
   justify-content: flex-end
   padding-top: 8px
   border-top: 1px solid rgba(255,255,255,0.06)
+  margin-top: auto
 
 .redo-btn
   display: inline-flex
@@ -266,7 +284,7 @@ h2
   border: 1px solid rgba(255,255,255,0.1)
   border-radius: 8px
   color: var(--ink-2)
-  font-family: 'Orbitron', sans-serif
+  font-family: var(--font-display)
   font-size: 10px
   letter-spacing: 1.5px
   cursor: pointer
@@ -280,12 +298,12 @@ h2
   display: inline-flex
   align-items: center
   gap: 10px
-  padding: 12px 24px
+  padding: 12px 28px
   background: linear-gradient(180deg, color-mix(in srgb, var(--c) 25%, transparent), color-mix(in srgb, var(--c) 10%, transparent))
   border: 1px solid var(--c)
   border-radius: 8px
   color: var(--c)
-  font-family: 'Orbitron', sans-serif
+  font-family: var(--font-display)
   font-size: 11px
   font-weight: 700
   letter-spacing: 1.5px
@@ -296,4 +314,12 @@ h2
   &:hover
     box-shadow: 0 0 28px var(--cg)
     transform: translateY(-1px)
+
+@media screen and (max-width: 640px)
+  .main-layout
+    grid-template-columns: 1fr
+  
+  .char-card
+    max-width: 240px
+    margin: 0 auto
 </style>
