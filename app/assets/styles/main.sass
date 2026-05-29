@@ -4,6 +4,7 @@
   padding: 0
 
 :root
+  // Colors
   --bg-0: #05060d
   --bg-1: #0a0e1f
   --bg-2: #10162e
@@ -27,13 +28,50 @@
   --col-e: #ffc14d
   --col-c: #7ad4ff
 
+  // Typography
+  --font-display: 'Orbitron', 'Space Grotesk', 'Arial Black', sans-serif
+  --font-body: 'Inter', 'Nunito', sans-serif
+  --font-mono: 'Fira Code', 'JetBrains Mono', monospace
+
 html, body
   background: var(--bg-0)
   color: var(--ink-0)
-  font-family: 'Rajdhani', 'Inter', sans-serif
+  font-family: var(--font-body)
+  font-size: 16px
+  line-height: 1.6
   min-height: 100vh
   overflow-x: hidden
+  -webkit-font-smoothing: antialiased
+  -moz-osx-font-smoothing: grayscale
 
 a
   color: inherit
   text-decoration: none
+
+// Display / Headings
+h1, h2, h3, h4, h5, h6
+  font-family: var(--font-display)
+  line-height: 1.2
+  letter-spacing: 0.05em
+
+// Body text helpers
+.text-body
+  font-family: var(--font-body)
+
+// Mono / code helpers
+.text-mono, code, pre
+  font-family: var(--font-mono)
+  font-size: 0.9em
+
+// Utility
+.text-gold
+  color: var(--gold)
+
+.text-dim
+  color: var(--ink-2)
+
+.glow-gold
+  text-shadow: 0 0 12px rgba(245, 201, 122, 0.5)
+
+.glow-cyan
+  text-shadow: 0 0 12px rgba(0, 212, 255, 0.5)
