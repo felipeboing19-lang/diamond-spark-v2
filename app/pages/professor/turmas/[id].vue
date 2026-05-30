@@ -1,49 +1,59 @@
 <template>
-	<div class="page">
-		<AlunoNav />
+	<div class="professor-page">
+		<ProfessorNav />
 		<main class="content">
-			<button class="back-link" @click="$router.push('/turmas')">VOLTAR</button>
+			<button class="back-link" @click="$router.push('/professor/turmas')">VOLTAR</button>
 
 			<div v-if="loading" class="loading">Carregando...</div>
 
-			<div v-else="">
-				<h1 class="title">{{ turma ? turma.name : 'Turma' }}</h1>
-				<p class="subtitle">{{ turma ? turma.description : '' }}</p>
-
-				<div class="tabs">
-					<button :class="{ active: tab === 'atividades' }" @click="tab = 'atividades'">ATIVIDADES</button>
-					<button :class="{ active: tab === 'alunos' }" @click="tab = 'alunos'">ALUNOS</button>
+			<div v-else-if="turma">
+				<div class="header-row">
+					<div>
+						<h1>{{ turma.name }}</h1>
+						<p class="desc">{{ turma.description || 'Sem descricao' }}</p>
+					</div>
+					<div class="code-box">
+						<span class="code-label">CODIGO</span>
+						<span class="code-value">{{ turma.code }}</span>
+					</div>
 				</div>
 
-				<div v-if="tab === 'atividades'">
-					<div v-if="atividades.length === 0" class="empty">
-						<p>Nenhuma atividade disponivel ainda.</p>
-					</div>
-					<div v-else="" class="grid">
-						<div v-for="a in atividades" :key="a.id" class="card" :class="a.status">
-							<span class="badge" :class="a.status">{{ statusLabel(a.status) }}</span>
-							<h3>{{ a.title }}</h3>
-							<p>{{ a.description }}</p>
-							<div class="card-footer">
-								<span class="date">{{ formatDate(a.created_at) }}</span>
-								<button v-if="a.status === 'active'" class="btn-enter" @click="$router.push('/arena/' + a.id)">ENTRAR NA ARENA</button>
-								<span v-else="" class="btn-disabled">{{ a.status === 'draft' ? 'EM PREPARACAO' : 'ENCERRADA' }}</span>
-							</div>
-						</div>
-					</div>
+				<div class="tabs">
+					<button :class="{ active: tab === 'alunos' }" @click="tab = 'alunos'">ALUNOS ({{ alunos.length }})</button>
+					<button :class="{ active: tab === 'perfis' }" @click="tab = 'perfis'">PERFIS RIASEC</button>
 				</div>
 
 				<div v-if="tab === 'alunos'">
 					<div v-if="alunos.length === 0" class="empty">
-						<p>Sem alunos ainda.</p>
+						<p>
+							Nenhum aluno ainda. Compartilhe o codigo <strong>{{ turma.code }}</strong>
+						</p>
 					</div>
-					<div v-else="" class="alunos-grid">
-						<div v-for="a in alunos" :key="a.id" class="aluno-card">
-							<div class="avatar" :style="{ color: getColor(a.riasec_profile), borderColor: getColor(a.riasec_profile) }">
-								{{ a.riasec_profile || '?' }}
+					<div v-else="" class="students-grid">
+						<div v-for="s in alunos" :key="s.id" class="student-card">
+							<div class="student-avatar" :style="{ color: getColor(s.riasec_profile), borderColor: getColor(s.riasec_profile) }">
+								{{ s.riasec_profile || '?' }}
 							</div>
-							<span class="aluno-name">{{ a.name }}</span>
+							<div class="student-info">
+								<span class="student-name">{{ s.name }}</span>
+								<span class="student-email">{{ s.email }}</span>
+								<div class="tags">
+									<span v-if="s.riasec_profile" class="tag" :style="{ color: getColor(s.riasec_profile) }">{{ getProfileName(s.riasec_profile) }}</span>
+									<span v-if="!s.onboarding_done" class="tag pending">PENDENTE</span>
+								</div>
+							</div>
 						</div>
+					</div>
+				</div>
+
+				<div v-if="tab === 'perfis'" class="profiles-view">
+					<div v-for="(count, code) in profileCounts" :key="code" class="bar-row">
+						<span class="bar-letter" :style="{ color: getColor(code) }">{{ code }}</span>
+						<div class="bar-track">
+							<div class="bar-fill" :style="{ width: barWidth(count) + '%', background: getColor(code) }"></div>
+						</div>
+						<span class="bar-count">{{ count }}</span>
+						<span class="bar-name">{{ getProfileName(code) }}</span>
 					</div>
 				</div>
 			</div>
@@ -52,84 +62,76 @@
 </template>
 
 <script setup="">
-	definePageMeta({ layout: 'default', middleware: 'auth' })
+	definePageMeta({ layout: 'default', middleware: 'professor' })
 	const route = useRoute()
-	const router = useRouter()
 	const supabase = useSupabaseClient()
 
 	const turma = ref(null)
-	const atividades = ref([])
 	const alunos = ref([])
 	const loading = ref(true)
-	const tab = ref('atividades')
+	const tab = ref('alunos')
 
 	const colors = { R: '#ffc14d', I: '#00e5ff', A: '#ff5fb1', S: '#3fe0a8', E: '#a073ff', C: '#3fb4ff' }
-	function getColor(code) { return colors[code] || '#f5c97a' }
-	function statusLabel(s) { return { draft: 'RASCUNHO', active: 'ATIVA', closed: 'ENCERRADA' }[s] || s }
-	function formatDate(d) { return d ? new Date(d).toLocaleDateString('pt-BR') : '' }
+	const names = { R: 'Realista', I: 'Investigativo', A: 'Artistico', S: 'Social', E: 'Empreendedor', C: 'Convencional' }
 
-	async function loadData() {
-	try {
-	loading.value = true
+	const profileCounts = computed(() => {
+	const c = { R: 0, I: 0, A: 0, S: 0, E: 0, C: 0 }
+	alunos.value.forEach(a => { if (a.riasec_profile) c[a.riasec_profile]++ })
+	return c
+	})
+	const maxCount = computed(() => Math.max(...Object.values(profileCounts.value), 1))
+
+	function barWidth(count) { return (count / maxCount.value) * 100 }
+	function getColor(code) { return colors[code] || '#fff' }
+	function getProfileName(code) { return names[code] || code }
+
+	onMounted(async () => {
 	const id = route.params.id
-	console.log('Carregando turma ID:', id)
 
-	const { data: t, error: tErr } = await supabase.from('classes').select('*').eq('id', id).single()
-	console.log('Turma:', t, 'Erro:', tErr)
+	const { data: t } = await supabase.from('classes').select('*').eq('id', id).single()
 	turma.value = t
 
-	const { data: a, error: aErr } = await supabase.from('activities').select('*').eq('class_id', id).order('created_at', { ascending: false })
-	console.log('Atividades:', a, 'Erro:', aErr)
-	atividades.value = a || []
-
-	const { data: cs } = await supabase.from('class_students').select('student_id, profiles(id, name, riasec_profile)').eq('class_id', id)
-	alunos.value = (cs || []).map(c => c.profiles).filter(Boolean)
-
-	loading.value = false
-	} catch (e) {
-	console.error('Erro:', e)
-	loading.value = false
-	}
+	const { data: cs } = await supabase.from('class_students').select('student_id').eq('class_id', id)
+	if (cs?.length) {
+	const ids = cs.map(c => c.student_id)
+	const { data: profiles } = await supabase.from('profiles').select('*').in('id', ids)
+	alunos.value = profiles || []
 	}
 
-	onMounted(() => {
-	console.log('MOUNTED, ID:', route.params.id)
-	loadData()
-	})
-
-	watch(() => route.params.id, () => {
-	console.log('ROUTE CHANGED, ID:', route.params.id)
-	loadData()
+	loading.value = false
 	})
 </script>
 
 <style scoped="">
-	.page { min-height: 100vh; background: var(--bg-0); }
-	.content { padding: 40px 48px; max-width: 900px; margin: 0 auto; }
-	.back-link { font-family: var(--font-display); font-size: 11px; letter-spacing: 1.5px; color: var(--ink-2); background: none; border: none; cursor: pointer; margin-bottom: 20px; display: inline-block; padding: 0; }
+	.professor-page { min-height: 100vh; background: var(--bg-0); }
+	.content { padding: 40px 48px; max-width: 1000px; margin: 0 auto; }
+	.back-link { font-family: var(--font-display); font-size: 11px; letter-spacing: 1.5px; color: var(--ink-2); background: none; border: none; cursor: pointer; padding: 0; margin-bottom: 20px; display: inline-block; }
 	.back-link:hover { color: var(--gold); }
 	.loading { text-align: center; padding: 80px; color: var(--ink-2); }
-	.title { font-family: var(--font-display); font-size: 28px; color: var(--gold); margin: 0 0 6px; }
-	.subtitle { color: var(--ink-2); font-size: 14px; margin: 0 0 32px; }
+	.header-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; }
+	h1 { font-family: var(--font-display); font-size: 28px; color: var(--gold); margin: 0 0 6px; }
+	.desc { color: var(--ink-2); font-size: 14px; margin: 0; }
+	.code-box { padding: 16px 24px; background: rgba(245,201,122,0.08); border: 1px solid rgba(245,201,122,0.3); border-radius: 12px; text-align: center; }
+	.code-label { display: block; font-family: var(--font-display); font-size: 9px; letter-spacing: 2px; color: var(--ink-3); margin-bottom: 6px; }
+	.code-value { font-family: var(--font-display); font-size: 28px; font-weight: 900; color: var(--gold); letter-spacing: 6px; }
 	.tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid rgba(255,255,255,0.06); }
 	.tabs button { padding: 10px 20px; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--ink-3); font-family: var(--font-display); font-size: 11px; letter-spacing: 1.5px; cursor: pointer; }
 	.tabs button.active { color: var(--gold); border-bottom-color: var(--gold); }
 	.empty { text-align: center; padding: 60px; color: var(--ink-2); }
-	.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
-	.card { padding: 20px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; display: flex; flex-direction: column; gap: 10px; }
-	.card.active { border-color: rgba(63,224,168,0.2); }
-	.badge { font-family: var(--font-display); font-size: 9px; letter-spacing: 1.5px; padding: 4px 10px; border-radius: 999px; width: fit-content; }
-	.badge.active { color: #3fe0a8; border: 1px solid #3fe0a8; background: rgba(63,224,168,0.08); }
-	.badge.draft { color: var(--ink-3); border: 1px solid rgba(255,255,255,0.15); }
-	.badge.closed { color: var(--ink-3); border: 1px solid rgba(255,255,255,0.08); }
-	.card h3 { font-family: var(--font-display); font-size: 15px; color: var(--ink-0); margin: 0; }
-	.card p { font-size: 13px; color: var(--ink-2); margin: 0; }
-	.card-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.05); }
-	.date { font-size: 12px; color: var(--ink-3); }
-	.btn-enter { padding: 8px 14px; background: linear-gradient(180deg, rgba(245,201,122,0.15), rgba(245,201,122,0.05)); border: 1px solid rgba(245,201,122,0.3); border-radius: 8px; color: var(--gold); font-family: var(--font-display); font-size: 10px; letter-spacing: 1.5px; cursor: pointer; }
-	.btn-disabled { font-family: var(--font-display); font-size: 10px; color: var(--ink-3); }
-	.alunos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 16px; }
-	.aluno-card { text-align: center; padding: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-	.avatar { width: 50px; height: 50px; border-radius: 50%; border: 2px solid; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 18px; font-weight: 900; }
-	.aluno-name { font-size: 12px; color: var(--ink-0); }
+	.empty strong { color: var(--gold); letter-spacing: 3px; }
+	.students-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+	.student-card { display: flex; align-items: center; gap: 14px; padding: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; }
+	.student-avatar { width: 44px; height: 44px; border-radius: 50%; border: 2px solid; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 18px; font-weight: 900; flex-shrink: 0; }
+	.student-name { display: block; font-family: var(--font-display); font-size: 13px; color: var(--ink-0); margin-bottom: 2px; }
+	.student-email { display: block; font-size: 12px; color: var(--ink-3); margin-bottom: 6px; }
+	.tags { display: flex; gap: 6px; flex-wrap: wrap; }
+	.tag { font-family: var(--font-display); font-size: 9px; letter-spacing: 1.5px; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; }
+	.tag.pending { color: #ff6b8b; }
+	.profiles-view { display: flex; flex-direction: column; gap: 16px; padding: 24px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; }
+	.bar-row { display: grid; grid-template-columns: 24px 1fr 32px 120px; align-items: center; gap: 16px; }
+	.bar-letter { font-family: var(--font-display); font-size: 18px; font-weight: 900; }
+	.bar-track { height: 12px; background: rgba(255,255,255,0.06); border-radius: 6px; overflow: hidden; }
+	.bar-fill { height: 100%; border-radius: 6px; transition: width 0.6s ease; }
+	.bar-count { font-family: var(--font-display); font-size: 14px; color: var(--ink-0); text-align: center; }
+	.bar-name { font-size: 13px; color: var(--ink-2); }
 </style>
