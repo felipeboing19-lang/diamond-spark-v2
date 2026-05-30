@@ -4,15 +4,19 @@
 		<main class="content">
 			<button class="back-link" @click="$router.push('/turmas')">VOLTAR</button>
 
-			<div v-if="loading" class="loading">Carregando...</div>
+			<p style="color:white">ID: {{ id }}</p>
+			<p style="color:white">Status: {{ status }}</p>
+
+			<div v-if="status === 'loading'" class="loading">Carregando...</div>
+			<div v-else-if="status === 'error'" class="loading" style="color:red">Erro ao carregar. Tente recarregar a pagina.</div>
 
 			<div v-else="">
-				<h1 class="title">{{ turma ? turma.name : 'Turma' }}</h1>
+				<h1 class="title">{{ turma ? turma.name : 'Sem turma' }}</h1>
 				<p class="subtitle">{{ turma ? turma.description : '' }}</p>
 
 				<div class="tabs">
-					<button :class="{ active: tab === 'atividades' }" @click="tab = 'atividades'">ATIVIDADES</button>
-					<button :class="{ active: tab === 'alunos' }" @click="tab = 'alunos'">ALUNOS</button>
+					<button :class="{ active: tab === 'atividades' }" @click="tab = 'atividades'">ATIVIDADES ({{ atividades.length }})</button>
+					<button :class="{ active: tab === 'alunos' }" @click="tab = 'alunos'">ALUNOS ({{ alunos.length }})</button>
 				</div>
 
 				<div v-if="tab === 'atividades'">
@@ -54,14 +58,13 @@
 <script setup="">
 	definePageMeta({ layout: 'default', middleware: 'auth' })
 	const route = useRoute()
-	const router = useRouter()
 	const supabase = useSupabaseClient()
-
+	const tab = ref('atividades')
 	const turma = ref(null)
 	const atividades = ref([])
 	const alunos = ref([])
-	const loading = ref(true)
-	const tab = ref('atividades')
+	const status = ref('loading')
+	const id = computed(() => route.params.id)
 
 	const colors = { R: '#ffc14d', I: '#00e5ff', A: '#ff5fb1', S: '#3fe0a8', E: '#a073ff', C: '#3fb4ff' }
 	function getColor(code) { return colors[code] || '#f5c97a' }
@@ -69,38 +72,31 @@
 	function formatDate(d) { return d ? new Date(d).toLocaleDateString('pt-BR') : '' }
 
 	async function loadData() {
+	const turmaId = id.value
+	if (!turmaId) {
+	status.value = 'error'
+	return
+	}
+	status.value = 'loading'
 	try {
-	loading.value = true
-	const id = route.params.id
-	console.log('Carregando turma ID:', id)
-
-	const { data: t, error: tErr } = await supabase.from('classes').select('*').eq('id', id).single()
-	console.log('Turma:', t, 'Erro:', tErr)
+	const [{ data: t }, { data: a }, { data: cs }] = await Promise.all([
+	supabase.from('classes').select('*').eq('id', turmaId).single(),
+	supabase.from('activities').select('*').eq('class_id', turmaId).order('created_at', { ascending: false }),
+	supabase.from('class_students').select('student_id, profiles(id, name, riasec_profile)').eq('class_id', turmaId)
+	])
 	turma.value = t
-
-	const { data: a, error: aErr } = await supabase.from('activities').select('*').eq('class_id', id).order('created_at', { ascending: false })
-	console.log('Atividades:', a, 'Erro:', aErr)
 	atividades.value = a || []
-
-	const { data: cs } = await supabase.from('class_students').select('student_id, profiles(id, name, riasec_profile)').eq('class_id', id)
 	alunos.value = (cs || []).map(c => c.profiles).filter(Boolean)
-
-	loading.value = false
+	status.value = 'done'
 	} catch (e) {
-	console.error('Erro:', e)
-	loading.value = false
+	console.error(e)
+	status.value = 'error'
 	}
 	}
 
-	onMounted(() => {
-	console.log('MOUNTED, ID:', route.params.id)
-	loadData()
-	})
-
-	watch(() => route.params.id, () => {
-	console.log('ROUTE CHANGED, ID:', route.params.id)
-	loadData()
-	})
+	watch(id, (newId) => {
+	if (newId) loadData()
+	}, { immediate: true })
 </script>
 
 <style scoped="">
