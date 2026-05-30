@@ -8,11 +8,9 @@
 
       <div v-else class="arena">
         <div class="arena-header">
-          <a href="/turmas" class="back-link">VOLTAR</a>
-          <div class="arena-title">
-            <h1>{{ activity.title }}</h1>
-            <p>{{ activity.description }}</p>
-          </div>
+          <button class="back-link" @click="$router.back()">VOLTAR</button>
+          <h1>{{ activity.title }}</h1>
+          <p>{{ activity.description }}</p>
         </div>
 
         <div class="stages-nav">
@@ -45,13 +43,19 @@
 
             <div class="delivery-actions">
               <button class="btn-save" @click="saveDraft">SALVAR RASCUNHO</button>
-              <button class="btn-submit" :disabled="!answers[stages[currentStage].key]" @click="submitStage">
-                {{ currentStage === stages.length - 1 ? 'FINALIZAR' : 'ENTREGAR E CONTINUAR' }}
+              <button class="btn-submit" :disabled="!answers[stages[currentStage].key] || submitting" @click="submitStage">
+                {{ submitting ? 'ENVIANDO...' : currentStage === stages.length - 1 ? 'FINALIZAR' : 'ENTREGAR E CONTINUAR' }}
               </button>
             </div>
 
             <p v-if="saveMsg" class="save-msg">{{ saveMsg }}</p>
           </div>
+        </div>
+
+        <div v-if="finished" class="finished-box">
+          <h2>ATIVIDADE CONCLUIDA!</h2>
+          <p>Parabens! Voce completou todas as etapas.</p>
+          <button class="btn-back" @click="$router.push('/turmas')">VOLTAR PARA TURMAS</button>
         </div>
 
         <div class="provocations-box" v-if="provocations.length > 0">
@@ -67,18 +71,20 @@
 </template>
 
 <script setup>
-definePageMeta({ layout: 'default', middleware: 'auth' })
+definePageMeta({ layout: 'default', middleware: 'aluno' })
 const route = useRoute()
-const router = useRouter()
 const supabase = useSupabaseClient()
 
 const activity = ref(null)
 const loading = ref(true)
+const submitting = ref(false)
 const currentStage = ref(0)
 const completedStages = ref([])
+const finished = ref(false)
 const answers = ref({ sentir: '', imaginar: '', fazer: '', compartilhar: '' })
 const provocations = ref([])
 const saveMsg = ref('')
+const userId = ref('')
 
 const allStages = [
   { key: 'sentir', label: 'SENTIR', icon: '❤️', desc: 'Observe o mundo ao seu redor. O que voce ve? O que te preocupa? Quem e afetado por esse problema?', placeholder: 'Descreva o que voce sentiu e observou...' },
@@ -88,8 +94,8 @@ const allStages = [
 ]
 
 const stages = computed(() => {
-  if (!activity.value) return allStages
-  return allStages.filter(s => activity.value.stages_enabled?.includes(s.key))
+  if (!activity.value || !activity.value.stages_enabled) return allStages
+  return allStages.filter(s => activity.value.stages_enabled.includes(s.key))
 })
 
 function formatDate(d) { return d ? new Date(d).toLocaleDateString('pt-BR') : '' }
@@ -101,42 +107,83 @@ function goToStage(i) {
 }
 
 async function saveDraft() {
+  const stage = stages.value[currentStage.value]
+  await supabase.from('deliveries').upsert({
+    activity_id: route.params.id,
+    student_id: userId.value,
+    stage: stage.key,
+    content: answers.value[stage.key],
+    status: 'draft'
+  }, { onConflict: 'activity_id,student_id,stage' })
   saveMsg.value = 'Rascunho salvo!'
   setTimeout(() => { saveMsg.value = '' }, 2000)
 }
 
 async function submitStage() {
+  submitting.value = true
   const stage = stages.value[currentStage.value]
+
+  await supabase.from('deliveries').upsert({
+    activity_id: route.params.id,
+    student_id: userId.value,
+    stage: stage.key,
+    content: answers.value[stage.key],
+    status: 'submitted',
+    submitted_at: new Date().toISOString()
+  }, { onConflict: 'activity_id,student_id,stage' })
+
   completedStages.value.push(stage.key)
+  submitting.value = false
 
   if (currentStage.value < stages.value.length - 1) {
     currentStage.value++
   } else {
-    saveMsg.value = 'Atividade concluida! Parabens!'
+    finished.value = true
+    await supabase.from('profiles').update({
+      xp: (activity.value.xp_reward || 50)
+    }).eq('id', userId.value)
   }
 }
 
-onMounted(async () => {
-  try {
-    const { data: a } = await supabase.from('activities').select('*').eq('id', route.params.id).single()
-    activity.value = a
+async function loadData() {
+  const id = route.params.id
+  if (!id) return
 
-    const { data: p } = await supabase.from('provocations').select('*').eq('activity_id', route.params.id).order('created_at', { ascending: false })
-    provocations.value = p || []
+  const { data: { user } } = await supabase.auth.getUser()
+  userId.value = user.id
 
-    loading.value = false
-  } catch (e) {
-    console.error(e)
-    loading.value = false
+  const { data: a } = await supabase.from('activities').select('*').eq('id', id).single()
+  activity.value = a
+
+  const { data: existing } = await supabase.from('deliveries').select('*').eq('activity_id', id).eq('student_id', user.id)
+  if (existing) {
+    existing.forEach(d => {
+      answers.value[d.stage] = d.content || ''
+      if (d.status === 'submitted') completedStages.value.push(d.stage)
+    })
+    const doneCount = completedStages.value.length
+    if (doneCount > 0 && doneCount < stages.value.length) {
+      currentStage.value = doneCount
+    }
+    if (doneCount >= stages.value.length) {
+      finished.value = true
+    }
   }
-})
+
+  const { data: p } = await supabase.from('provocations').select('*').eq('activity_id', id).order('created_at', { ascending: false })
+  provocations.value = p || []
+
+  loading.value = false
+}
+
+onMounted(() => loadData())
 </script>
 
 <style scoped>
 .arena-page { min-height: 100vh; background: var(--bg-0); }
 .arena-content { padding: 32px 48px; max-width: 900px; margin: 0 auto; }
 .loading { text-align: center; padding: 80px; color: var(--ink-2); }
-.back-link { font-family: var(--font-display); font-size: 11px; letter-spacing: 1.5px; color: var(--ink-2); text-decoration: none; display: inline-block; margin-bottom: 16px; }
+.back-link { font-family: var(--font-display); font-size: 11px; letter-spacing: 1.5px; color: var(--ink-2); background: none; border: none; cursor: pointer; padding: 0; margin-bottom: 16px; display: inline-block; }
 .back-link:hover { color: var(--gold); }
 .arena-header { margin-bottom: 32px; }
 h1 { font-family: var(--font-display); font-size: 28px; color: var(--gold); margin: 0 0 6px; }
@@ -161,7 +208,7 @@ h1 { font-family: var(--font-display); font-size: 28px; color: var(--gold); marg
 .stage-header h2 { font-family: var(--font-display); font-size: 22px; color: var(--ink-0); margin: 0 0 8px; }
 .stage-header p { color: var(--ink-2); font-size: 14px; line-height: 1.6; margin: 0 0 24px; }
 .delivery-label { font-family: var(--font-display); font-size: 10px; letter-spacing: 2px; color: var(--ink-3); display: block; margin-bottom: 10px; }
-.delivery-area textarea { width: 100%; padding: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: var(--ink-0); font-family: var(--font-body); font-size: 15px; resize: vertical; outline: none; line-height: 1.6; }
+.delivery-area textarea { width: 100%; padding: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: var(--ink-0); font-family: var(--font-body); font-size: 15px; resize: vertical; outline: none; line-height: 1.6; box-sizing: border-box; }
 .delivery-area textarea:focus { border-color: rgba(245,201,122,0.4); }
 .delivery-actions { display: flex; gap: 12px; margin-top: 16px; justify-content: flex-end; }
 .btn-save { padding: 11px 20px; background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: var(--ink-2); font-family: var(--font-display); font-size: 11px; letter-spacing: 1.5px; cursor: pointer; }
@@ -169,6 +216,10 @@ h1 { font-family: var(--font-display); font-size: 28px; color: var(--gold); marg
 .btn-submit:hover:not(:disabled) { background: linear-gradient(180deg, rgba(245,201,122,0.35), rgba(245,201,122,0.15)); }
 .btn-submit:disabled { opacity: 0.4; cursor: not-allowed; }
 .save-msg { text-align: right; margin: 8px 0 0; font-size: 13px; color: #3fe0a8; }
+.finished-box { text-align: center; padding: 40px; background: rgba(63,224,168,0.06); border: 1px solid rgba(63,224,168,0.2); border-radius: 16px; margin-bottom: 24px; }
+.finished-box h2 { font-family: var(--font-display); font-size: 24px; color: #3fe0a8; margin: 0 0 8px; }
+.finished-box p { color: var(--ink-2); margin: 0 0 20px; }
+.btn-back { padding: 12px 24px; background: linear-gradient(180deg, rgba(63,224,168,0.2), rgba(63,224,168,0.08)); border: 1px solid #3fe0a8; border-radius: 10px; color: #3fe0a8; font-family: var(--font-display); font-size: 11px; letter-spacing: 1.5px; cursor: pointer; }
 .provocations-box { padding: 20px; background: rgba(245,201,122,0.04); border: 1px solid rgba(245,201,122,0.15); border-radius: 12px; }
 .provocations-box h3 { font-family: var(--font-display); font-size: 11px; letter-spacing: 2px; color: var(--gold); margin: 0 0 14px; }
 .prov-item { padding: 12px; background: rgba(255,255,255,0.04); border-radius: 8px; margin-bottom: 8px; }

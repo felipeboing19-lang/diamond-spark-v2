@@ -12,23 +12,23 @@
       </div>
 
       <div class="actions">
-        <a href="/turmas" class="action-card">
+        <button class="action-card" @click="$router.push('/turmas')">
           <span class="icon">🏫</span>
           <span class="label">MINHAS TURMAS</span>
           <span class="desc">Entre em turmas e veja atividades</span>
-        </a>
-        <a href="/perfil" class="action-card">
+        </button>
+        <button class="action-card" @click="$router.push('/perfil')">
           <span class="icon">👤</span>
           <span class="label">MEU PERFIL</span>
           <span class="desc">Seu perfil RIASEC e inteligencias</span>
-        </a>
+        </button>
       </div>
     </main>
   </div>
 </template>
 
 <script setup>
-definePageMeta({ layout: 'default', middleware: 'auth' })
+definePageMeta({ layout: 'default', middleware: 'aluno' })
 const supabase = useSupabaseClient()
 const profile = ref(null)
 
@@ -37,7 +37,7 @@ const descs = {
   R: 'Voce e pratico e gosta de trabalhar com suas maos.',
   I: 'Voce e curioso e adora resolver problemas complexos.',
   A: 'Voce e criativo e expressa suas ideias de forma unica.',
-  S: 'Voce e empático e gosta de ajudar as pessoas.',
+  S: 'Voce e empatico e gosta de ajudar as pessoas.',
   E: 'Voce e lider e gosta de desafios e oportunidades.',
   C: 'Voce e organizado e gosta de estrutura e precisao.',
 }
@@ -61,7 +61,7 @@ onMounted(async () => {
 h1 { font-family: var(--font-display); font-size: 28px; color: var(--ink-0); margin: 0 0 8px; }
 .hero-text p { margin: 0; color: var(--ink-2); font-size: 15px; line-height: 1.6; }
 .actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
-.action-card { display: flex; flex-direction: column; gap: 8px; padding: 24px; background: linear-gradient(180deg, rgba(245,201,122,0.1), rgba(245,201,122,0.04)); border: 1px solid rgba(245,201,122,0.2); border-radius: 16px; text-decoration: none; transition: all 0.2s; }
+.action-card { display: flex; flex-direction: column; gap: 8px; padding: 24px; background: linear-gradient(180deg, rgba(245,201,122,0.1), rgba(245,201,122,0.04)); border: 1px solid rgba(245,201,122,0.2); border-radius: 16px; cursor: pointer; transition: all 0.2s; text-align: left; }
 .action-card:hover { background: linear-gradient(180deg, rgba(245,201,122,0.2), rgba(245,201,122,0.08)); transform: translateY(-2px); }
 .icon { font-size: 28px; }
 .label { font-family: var(--font-display); font-size: 13px; letter-spacing: 1.5px; color: var(--gold); }
