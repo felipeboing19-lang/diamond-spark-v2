@@ -19,8 +19,38 @@
           <input v-model="form.title" type="text" placeholder="Ex: Desafio de Empatia" />
         </div>
         <div class="field">
-          <label>DESCRIÇÃO</label>
+          <label>DESCRIÇÃO *</label>
           <textarea v-model="form.description" placeholder="Descreva a atividade..." rows="3"></textarea>
+        </div>
+        <div class="field">
+          <label>CANVAS DA ATIVIDADE * <span class="field-hint">(serão executados nesta ordem pela equipe)</span></label>
+          <CanvasTemplatePicker v-model="form.canvas_sequence" />
+        </div>
+        <div class="field">
+          <label>QUEM PARTICIPA *</label>
+          <div class="audience-toggle">
+            <button :class="['aud-btn', { active: form.audience === 'all' }]" @click="form.audience = 'all'">
+              Todos os alunos da turma
+            </button>
+            <button :class="['aud-btn', { active: form.audience === 'selected' }]" @click="form.audience = 'selected'">
+              Selecionar alunos
+            </button>
+          </div>
+          <div v-if="form.audience === 'selected'" class="students-box">
+            <p v-if="!form.class_id" class="students-hint">Selecione uma turma primeiro.</p>
+            <p v-else-if="loadingStudents" class="students-hint">Carregando alunos...</p>
+            <p v-else-if="students.length === 0" class="students-hint">Esta turma ainda não tem alunos.</p>
+            <template v-else>
+              <div class="students-actions">
+                <button class="link-btn" @click="selectAllStudents">Todos</button>
+                <button class="link-btn" @click="form.selected = []">Limpar</button>
+              </div>
+              <label v-for="s in students" :key="s.id" class="student-row">
+                <input type="checkbox" :value="s.id" v-model="form.selected" />
+                <span>{{ s.name }}</span>
+              </label>
+            </template>
+          </div>
         </div>
         <div class="field">
           <label>OBJETIVO PEDAGÓGICO</label>
@@ -54,7 +84,7 @@
         <p v-if="error" class="error">{{ error }}</p>
         <div class="form-actions">
           <NuxtLink to="/professor/atividades" class="btn-cancel">CANCELAR</NuxtLink>
-          <button class="btn-submit" :disabled="loading || !form.title || !form.class_id" @click="createActivity">
+          <button class="btn-submit" :disabled="loading || !canSubmit" @click="createActivity">
             {{ loading ? 'CRIANDO...' : 'CRIAR ATIVIDADE' }}
           </button>
         </div>
@@ -67,10 +97,13 @@ definePageMeta({ layout: 'default', middleware: 'professor' })
 const supabase = useSupabaseClient()
 const router = useRouter()
 const classes = ref([])
+const students = ref([])
+const loadingStudents = ref(false)
 const loading = ref(false)
 const error = ref('')
 const form = ref({
-  class_id: '', title: '', description: '', objective: '',
+  class_id: '', title: '', description: '', canvas_sequence: [], objective: '',
+  audience: 'all', selected: [],
   stages_enabled: ['sentir', 'imaginar', 'fazer', 'compartilhar'],
   sequential: true, team_mode: true, allow_peer_review: false
 })
@@ -80,32 +113,91 @@ const allStages = [
   { key: 'fazer', label: 'FAZER' },
   { key: 'compartilhar', label: 'COMPARTILHAR' },
 ]
+const canSubmit = computed(() =>
+  !!form.value.class_id &&
+  !!form.value.title.trim() &&
+  !!form.value.description.trim() &&
+  form.value.canvas_sequence.length > 0 &&
+  (form.value.audience === 'all' || form.value.selected.length > 0)
+)
 onMounted(async () => {
   const { data: { user } } = await supabase.auth.getUser()
   const { data } = await supabase.from('classes').select('id, name').eq('teacher_id', user.id).eq('active', true)
   classes.value = data || []
 })
+async function loadStudents(classId) {
+  if (!classId) { students.value = []; return }
+  loadingStudents.value = true
+  const { data: cs } = await supabase.from('class_students').select('student_id').eq('class_id', classId)
+  const ids = (cs || []).map(x => x.student_id)
+  if (ids.length === 0) { students.value = []; loadingStudents.value = false; return }
+  const { data: profs } = await supabase.from('profiles').select('id, name').in('id', ids)
+  students.value = profs || []
+  loadingStudents.value = false
+}
+watch(() => form.value.class_id, (id) => {
+  form.value.selected = []
+  if (form.value.audience === 'selected') loadStudents(id)
+})
+watch(() => form.value.audience, (aud) => {
+  if (aud === 'selected') loadStudents(form.value.class_id)
+})
+function selectAllStudents() {
+  form.value.selected = students.value.map(s => s.id)
+}
 function toggleStage(key) {
   const idx = form.value.stages_enabled.indexOf(key)
   if (idx > -1) form.value.stages_enabled.splice(idx, 1)
   else form.value.stages_enabled.push(key)
 }
 async function createActivity() {
-  loading.value = true; error.value = ''
+  error.value = ''
+  if (!form.value.description.trim()) { error.value = 'A descrição da atividade é obrigatória.'; return }
+  if (form.value.canvas_sequence.length === 0) { error.value = 'Escolha ao menos um canvas.'; return }
+  if (form.value.audience === 'selected' && form.value.selected.length === 0) {
+    error.value = 'Selecione ao menos um aluno.'; return
+  }
+  loading.value = true
   const { data: { user } } = await supabase.auth.getUser()
-  const { error: err } = await supabase.from('activities').insert({
+
+  // 1) cria a atividade
+  const { data: act, error: err } = await supabase.from('activities').insert({
     teacher_id: user.id,
     class_id: form.value.class_id,
     title: form.value.title,
-    description: form.value.description || null,
+    description: form.value.description,
+    canvas_sequence: form.value.canvas_sequence,
+    audience: form.value.audience,
     objective: form.value.objective || null,
     stages_enabled: form.value.stages_enabled,
     sequential: form.value.sequential,
     team_mode: form.value.team_mode,
     allow_peer_review: form.value.allow_peer_review,
-  })
+  }).select('id').single()
+  if (err) { error.value = err.message; loading.value = false; return }
+
+  // 2) define os participantes
+  let participantIds = []
+  if (form.value.audience === 'all') {
+    const { data: cs } = await supabase.from('class_students').select('student_id').eq('class_id', form.value.class_id)
+    participantIds = (cs || []).map(x => x.student_id)
+  } else {
+    participantIds = form.value.selected
+  }
+
+  // 3) cria a equipe automática da atividade e vincula os participantes
+  const { data: team, error: teamErr } = await supabase.from('teams')
+    .insert({ activity_id: act.id, name: form.value.title, color: '#ffc14d' })
+    .select('id').single()
+  if (teamErr) { error.value = 'Atividade criada, mas falhou ao montar a equipe: ' + teamErr.message; loading.value = false; return }
+
+  if (participantIds.length > 0) {
+    const rows = participantIds.map(sid => ({ team_id: team.id, student_id: sid }))
+    const { error: memErr } = await supabase.from('team_members').insert(rows)
+    if (memErr) { error.value = 'Atividade criada, mas falhou ao vincular alunos: ' + memErr.message; loading.value = false; return }
+  }
+
   loading.value = false
-  if (err) { error.value = err.message; return }
   router.push('/professor/atividades')
 }
 </script>
@@ -118,6 +210,17 @@ h1 { font-family: var(--font-display); font-size: 28px; color: var(--gold); marg
 .form-card { padding: 32px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; display: flex; flex-direction: column; gap: 20px; }
 .field { display: flex; flex-direction: column; gap: 8px; }
 .field label { font-family: var(--font-display); font-size: 10px; letter-spacing: 2px; color: var(--ink-3); }
+.field-hint { font-family: var(--font-body); letter-spacing: 0; text-transform: none; color: var(--ink-2); font-size: 11px; }
+.audience-toggle { display: flex; gap: 8px; }
+.aud-btn { flex: 1; padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: var(--ink-2); font-family: var(--font-body); font-size: 13px; cursor: pointer; transition: all 0.2s; }
+.aud-btn.active { border-color: var(--gold); color: var(--gold); background: rgba(245,201,122,0.08); }
+.students-box { margin-top: 12px; padding: 14px; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; background: rgba(255,255,255,0.02); max-height: 240px; overflow-y: auto; }
+.students-hint { color: var(--ink-3); font-size: 13px; margin: 0; }
+.students-actions { display: flex; gap: 14px; margin-bottom: 10px; }
+.link-btn { background: none; border: none; color: var(--gold); font-size: 12px; cursor: pointer; padding: 0; }
+.link-btn:hover { text-decoration: underline; }
+.student-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; cursor: pointer; font-size: 14px; color: var(--ink-1); }
+.student-row input { width: 16px; height: 16px; accent-color: var(--gold); }
 .field input, .field textarea, .field select { padding: 12px 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: var(--ink-0); font-family: var(--font-body); font-size: 15px; outline: none; transition: all 0.2s; resize: vertical; }
 .field input:focus, .field textarea:focus, .field select:focus { border-color: rgba(245,201,122,0.4); background: rgba(245,201,122,0.04); }
 .field select option { background: var(--bg-1); }

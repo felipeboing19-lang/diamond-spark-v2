@@ -23,6 +23,26 @@
           <span class="desc">Seu perfil RIASEC e inteligencias</span>
         </button>
       </div>
+
+      <!-- Atividades disponíveis -->
+      <section class="activities">
+        <h2 class="section-title">ATIVIDADES DISPONÍVEIS</h2>
+        <div v-if="loadingActivities" class="act-state">Carregando atividades...</div>
+        <div v-else-if="activities.length === 0" class="act-state">
+          Nenhuma atividade disponível no momento.
+        </div>
+        <div v-else class="act-grid">
+          <button v-for="a in activities" :key="a.id" class="act-card" @click="openActivity(a.id)">
+            <div class="act-top">
+              <span class="act-icon">🎯</span>
+              <span class="act-class" v-if="a.class_name">{{ a.class_name }}</span>
+            </div>
+            <h3>{{ a.title }}</h3>
+            <p v-if="a.description">{{ a.description }}</p>
+            <span class="act-open">ABRIR CANVAS →</span>
+          </button>
+        </div>
+      </section>
     </main>
   </div>
 </template>
@@ -31,6 +51,8 @@
 definePageMeta({ layout: 'default', middleware: 'aluno' })
 const supabase = useSupabaseClient()
 const profile = ref(null)
+const activities = ref([])
+const loadingActivities = ref(true)
 
 const colors = { R: '#ffc14d', I: '#00e5ff', A: '#ff5fb1', S: '#3fe0a8', E: '#a073ff', C: '#3fb4ff' }
 const descs = {
@@ -49,7 +71,35 @@ onMounted(async () => {
   const { data: { user } } = await supabase.auth.getUser()
   const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
   profile.value = data
+  await loadActivities(user.id)
 })
+
+function openActivity(id) {
+  window.location.href = `/arena/${id}`
+}
+
+async function loadActivities(uid) {
+  // atividades onde o aluno é participante (team_members -> teams -> activities)
+  const { data } = await supabase
+    .from('team_members')
+    .select('teams!inner(activity_id, activities!inner(id, title, description, status, class_id, classes(name)))')
+    .eq('student_id', uid)
+
+  const seen = new Set()
+  const list = []
+  ;(data || []).forEach(row => {
+    const act = row.teams?.activities
+    if (!act || seen.has(act.id)) return
+    if (act.status !== 'active') return          // só atividades publicadas
+    seen.add(act.id)
+    list.push({
+      id: act.id, title: act.title, description: act.description,
+      class_name: act.classes?.name || '',
+    })
+  })
+  activities.value = list
+  loadingActivities.value = false
+}
 </script>
 
 <style scoped>
@@ -66,4 +116,19 @@ h1 { font-family: var(--font-display); font-size: 28px; color: var(--ink-0); mar
 .icon { font-size: 28px; }
 .label { font-family: var(--font-display); font-size: 13px; letter-spacing: 1.5px; color: var(--gold); }
 .desc { font-size: 13px; color: var(--ink-2); }
+
+/* atividades */
+.section-title { font-family: var(--font-display); font-size: 12px; letter-spacing: 2px; color: var(--ink-3); margin: 0 0 16px; }
+.act-state { padding: 28px; text-align: center; color: var(--ink-3); font-size: 14px; background: rgba(255,255,255,0.02); border: 1px dashed var(--bg-3); border-radius: 14px; }
+.act-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+@media (max-width: 640px) { .act-grid { grid-template-columns: 1fr; } }
+.act-card { display: flex; flex-direction: column; gap: 8px; padding: 20px; text-align: left; cursor: pointer;
+  background: rgba(255,255,255,0.04); border: 1px solid var(--bg-3); border-radius: 16px; transition: all 0.2s; }
+.act-card:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--gold) 50%, transparent); box-shadow: 0 10px 26px -14px var(--gold); }
+.act-top { display: flex; align-items: center; justify-content: space-between; }
+.act-icon { font-size: 22px; }
+.act-class { font-size: 11px; color: var(--ink-3); }
+.act-card h3 { font-family: var(--font-display); font-size: 15px; color: var(--ink-0); margin: 4px 0 0; }
+.act-card p { margin: 0; font-size: 13px; color: var(--ink-2); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.act-open { margin-top: auto; padding-top: 8px; font-family: var(--font-display); font-size: 10px; letter-spacing: 1.5px; color: var(--gold); }
 </style>

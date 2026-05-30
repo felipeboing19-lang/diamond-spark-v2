@@ -32,7 +32,8 @@
           <div class="activity-footer">
             <span class="date">{{ formatDate(a.created_at) }}</span>
             <div class="activity-actions">
-              <NuxtLink :to="`/professor/atividades/${a.id}`" class="btn-view">VER</NuxtLink>
+              <button class="btn-live" @click="goLive(a.id)">● AO VIVO</button>
+              <button class="btn-view" @click="goView(a.id)">VER</button>
               <button class="btn-status" @click="cycleStatus(a)">
                 {{ a.status === 'draft' ? 'PUBLICAR' : a.status === 'active' ? 'ENCERRAR' : 'REABRIR' }}
               </button>
@@ -55,6 +56,8 @@ onMounted(async () => {
   loading.value = false
 })
 function statusLabel(s) { return { draft: 'RASCUNHO', active: 'ATIVA', closed: 'ENCERRADA' }[s] || s }
+function goLive(id) { window.location.href = `/professor/canvas/${id}` }
+function goView(id) { window.location.href = `/professor/atividades/${id}` }
 function formatDate(d) { return new Date(d).toLocaleDateString('pt-BR') }
 async function cycleStatus(a) {
   const next = { draft: 'active', active: 'closed', closed: 'active' }[a.status]
@@ -95,6 +98,8 @@ h1 { font-family: var(--font-display); font-size: 28px; color: var(--gold); marg
 .activity-actions { display: flex; gap: 8px; }
 .btn-view { padding: 8px 16px; background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: var(--ink-2); font-family: var(--font-display); font-size: 10px; letter-spacing: 1.5px; text-decoration: none; transition: all 0.2s; }
 .btn-view:hover { border-color: var(--gold); color: var(--gold); }
+.btn-live { padding: 8px 16px; background: rgba(255,107,107,0.08); border: 1px solid rgba(255,107,107,0.3); border-radius: 8px; color: #ff6b6b; font-family: var(--font-display); font-size: 10px; letter-spacing: 1.5px; text-decoration: none; transition: all 0.2s; }
+.btn-live:hover { background: rgba(255,107,107,0.16); }
 .btn-status { padding: 8px 16px; background: linear-gradient(180deg, rgba(245,201,122,0.15), rgba(245,201,122,0.05)); border: 1px solid rgba(245,201,122,0.3); border-radius: 8px; color: var(--gold); font-family: var(--font-display); font-size: 10px; letter-spacing: 1.5px; cursor: pointer; transition: all 0.2s; }
 .btn-status:hover { background: linear-gradient(180deg, rgba(245,201,122,0.25), rgba(245,201,122,0.1)); }
 </style>
